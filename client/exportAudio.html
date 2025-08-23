@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>导出音频文件到本地</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        .export-container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 10px 0;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        #fileList {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ddd;
+        }
+        .file-item {
+            padding: 10px;
+            margin: 5px 0;
+            border-bottom: 1px solid #eee;
+        }
+    </style>
+</head>
+<body>
+    <div class="export-container">
+        <h1>导出存储的音频文件</h1>
+        <p>点击下方按钮加载所有音频记录，然后选择要导出的文件：</p>
+        <button id="loadBtn">加载所有音频记录</button>
+        <div id="fileList"></div>
+    </div>
+
+    <script type="module">
+        import AudioStorage from './audio-storage.js';
+        const audioStorage = new AudioStorage();
+        const fileListEl = document.getElementById('fileList');
+
+        // 加载所有音频记录
+        document.getElementById('loadBtn').addEventListener('click', async () => {
+            try {
+                const records = await audioStorage.getAllAudioRecords();
+                
+                if (records.length === 0) {
+                    fileListEl.innerHTML = '<p>没有找到任何存储的音频数据</p>';
+                    return;
+                }
+
+                // 显示所有可导出的音频记录
+                fileListEl.innerHTML = records.map(record => `
+                    <div class="file-item">
+                        <strong>音频记录 #${record.id}</strong><br>
+                        存储时间: ${new Date(record.timestamp).toLocaleString()}<br>
+                        格式: ${record.metadata.format || '未知'}<br>
+                        大小: ${(record.data.byteLength / 1024).toFixed(2)} KB<br>
+                        <button onclick="exportToFile(${record.id}, '${record.metadata.format || 'wav'}')">
+                            导出为 ${record.metadata.format || 'wav'} 文件
+                        </button>
+                    </div>
+                `).join('');
+
+                // 绑定导出函数到window对象，供HTML调用
+                window.exportToFile = async (id, format) => {
+                    await exportAudioAsFile(id, format);
+                };
+
+            } catch (error) {
+                fileListEl.innerHTML = `<p>加载失败: ${error.message}</p>`;
+            }
+        });
+
+        // 核心函数：将音频数据导出为本地文件
+        async function exportAudioAsFile(recordId, format) {
+            try {
+                // 1. 从IndexedDB获取指定ID的音频记录
+                const record = await audioStorage.getAudioRecordById(recordId);
+                
+                if (!record) {
+                    alert('未找到该音频记录');
+                    return;
+                }
+
+                // 2. 将ArrayBuffer转换为Blob（二进制大对象）
+                // 根据音频格式设置正确的MIME类型
+                const mimeType = getMimeTypeByFormat(format);
+                const audioBlob = new Blob([record.data], { type: mimeType });
+
+                // 3. 创建下载链接
+                const url = URL.createObjectURL(audioBlob);
+                const a = document.createElement('a');
+                
+                // 设置文件名（包含ID和时间戳，避免重复）
+                const timestamp = new Date(record.timestamp).getTime();
+                a.download = `audio_${recordId}_${timestamp}.${format}`;
+                a.href = url;
+
+                // 4. 触发下载
+                document.body.appendChild(a);
+                a.click();
+
+                // 5. 清理资源
+                setTimeout(() => {
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url); // 释放内存
+                }, 100);
+
+                alert(`音频文件已开始下载，格式：${format}`);
+
+            } catch (error) {
+                alert(`导出失败: ${error.message}`);
+            }
+        }
+
+        // 辅助函数：根据格式获取对应的MIME类型
+        function getMimeTypeByFormat(format) {
+            const mimeTypes = {
+                'wav': 'audio/wav',
+                'mp3': 'audio/mpeg',
+                'pcm': 'audio/pcm',
+                'ogg': 'audio/ogg',
+                'aac': 'audio/aac'
+            };
+            return mimeTypes[format.toLowerCase()] || 'audio/wav';
+        }
+    </script>
+</body>
+</html>

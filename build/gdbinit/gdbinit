@@ -1,0 +1,2 @@
+source /Users/lsh726/Desktop/esp32/demo/build/gdbinit/symbols
+source /Users/lsh726/Desktop/esp32/demo/build/gdbinit/connect
