@@ -1,1 +1,0 @@
-/Users/lsh726/Desktop/esp32/esp-idf/components/mbedtls/mbedtls/library/error.c

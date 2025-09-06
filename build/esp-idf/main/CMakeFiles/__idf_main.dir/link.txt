@@ -1,2 +1,0 @@
-/Users/lsh726/.espressif/tools/xtensa-esp-elf/esp-15.1.0_20250607/xtensa-esp-elf/bin/xtensa-esp32s3-elf-ar qc libmain.a  CMakeFiles/__idf_main.dir/main.c.obj CMakeFiles/__idf_main.dir/i2s_mic.c.obj CMakeFiles/__idf_main.dir/threadSafe_queue.c.obj CMakeFiles/__idf_main.dir/lsh_wifi.c.obj CMakeFiles/__idf_main.dir/lsh_socket.c.obj CMakeFiles/__idf_main.dir/lsh_webSocket.c.obj
-/Users/lsh726/.espressif/tools/xtensa-esp-elf/esp-15.1.0_20250607/xtensa-esp-elf/bin/xtensa-esp32s3-elf-ranlib libmain.a
