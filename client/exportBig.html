@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>合并音频片段</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 10px 0;
+            background: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0b7dda;
+        }
+        #status {
+            margin: 20px 0;
+            padding: 10px;
+            border: 1px solid #eee;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>合并存储的音频片段</h1>
+        <p>将所有音频片段按存储时间顺序合并为一个文件：</p>
+        <button id="mergeBtn">开始合并并导出</button>
+        <div id="status"></div>
+    </div>
+
+    <script type="module">
+        import AudioStorage from './audio-storage.js';
+        const audioStorage = new AudioStorage();
+        const statusEl = document.getElementById('status');
+
+        // 合并音频并导出
+        document.getElementById('mergeBtn').addEventListener('click', async () => {
+            statusEl.textContent = '正在加载音频片段...';
+            
+            try {
+                // 1. 获取所有音频记录并按时间排序
+                const records = await audioStorage.getAllAudioRecords();
+                if (records.length === 0) {
+                    statusEl.textContent = '没有找到可合并的音频片段';
+                    return;
+                }
+                
+                // 按存储时间排序（确保播放顺序正确）
+                records.sort((a, b) => a.timestamp - b.timestamp);
+                statusEl.textContent = `已加载 ${records.length} 个音频片段，正在合并...`;
+
+                // 2. 验证所有片段格式是否一致（避免合并后播放异常）
+                const firstFormat = records[0].metadata.format;
+                const firstSampleRate = records[0].metadata.sampleRate;
+                const formatMismatch = records.some(record => 
+                    record.metadata.format !== firstFormat || 
+                    record.metadata.sampleRate !== firstSampleRate
+                );
+                
+                if (formatMismatch) {
+                    statusEl.textContent = '警告：部分音频片段格式/采样率不一致，合并后可能无法正常播放';
+                }
+
+                // 3. 合并所有ArrayBuffer数据
+                const totalLength = records.reduce((sum, record) => sum + record.data.byteLength, 0);
+                const mergedBuffer = new Uint8Array(totalLength);
+                let offset = 0;
+                
+                records.forEach(record => {
+                    mergedBuffer.set(new Uint8Array(record.data), offset);
+                    offset += record.data.byteLength;
+                });
+
+                // 4. 转换为Blob并导出
+                const mimeType = getMimeTypeByFormat(firstFormat || 'wav');
+                const mergedBlob = new Blob([mergedBuffer], { type: mimeType });
+                
+                const url = URL.createObjectURL(mergedBlob);
+                const a = document.createElement('a');
+                a.download = `merged_audio_${new Date().getTime()}.${firstFormat || 'wav'}`;
+                a.href = url;
+                document.body.appendChild(a);
+                a.click();
+                
+                // 清理资源
+                setTimeout(() => {
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                }, 100);
+
+                statusEl.textContent = `合并成功！共合并 ${records.length} 个片段，文件已开始下载`;
+
+            } catch (error) {
+                statusEl.textContent = `合并失败：${error.message}`;
+            }
+        });
+
+        // 辅助函数：根据格式获取MIME类型
+        function getMimeTypeByFormat(format) {
+            const mimeTypes = {
+                'wav': 'audio/wav',
+                'mp3': 'audio/mpeg',
+                'pcm': 'audio/pcm',
+                'ogg': 'audio/ogg',
+                'aac': 'audio/aac'
+            };
+            return mimeTypes[format?.toLowerCase()] || 'audio/wav';
+        }
+    </script>
+</body>
+</html>
